@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import mariadb
 
-from model.task import Task, TaskCreateRequestBody
+from model.task import Task, TaskCreateRequestBody, TaskOptionalRequestBody
 
 # load env file
 load_dotenv()
@@ -52,18 +52,6 @@ async def lifespan(app: FastAPI):
     conn.close()
 
 app = FastAPI(lifespan=lifespan)
-
-
-# CORS Setting
-# WARNING: this may not safe, probably need to specify the origin
-origins = ['*']
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 # CORS Setting
@@ -138,12 +126,12 @@ async def delete_todo(id: int):
 
 # PATCH for update
 @app.patch('/todo/{id}')
-async def patch_todo(id: int, task: TaskCreateRequestBody):
+async def patch_todo(id: int, task: TaskOptionalRequestBody):
     _previous_info = await get_single_todo_info(id)
     
     _cursor.execute(
         "UPDATE task SET name = ?, is_done = ? WHERE id = ?",
-        [_previous_info.name or task.name, _previous_info.is_done or task.is_done, id]
+        [task.name or _previous_info.get("name"), task.is_done , id]
     )
     _conn.commit()
 
@@ -152,6 +140,18 @@ async def patch_todo(id: int, task: TaskCreateRequestBody):
         'data': await get_single_todo_info(id)
     }
 
+
 @app.put('/todo/{id}')
-async def put_todo():
-    pass
+async def patch_todo(id: int, task: TaskOptionalRequestBody):
+    _previous_info: Task = await get_single_todo_info(id)
+    print(task)
+    _cursor.execute(
+        "UPDATE task SET name = ?, is_done = ? WHERE id = ?",
+        [task.name or _previous_info.get("name"), task.is_done , id]
+    )
+    _conn.commit()
+
+    return {
+        'success': 'ok',
+        'data': await get_single_todo_info(id)
+    }
